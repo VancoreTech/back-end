@@ -1,0 +1,31 @@
+version: '3'
+services:
+  app:
+    build: .
+    container_name: vancore-be
+    environment:
+      - DATABASE_URL=postgresql://fullstack:1234@localhost:5432/vancore_db
+      - JWT_SECRET=secretkey
+      - GOOGLE_CLIENT_ID=
+      - GOOGLE_CLIENT_SECRET=
+      - NODE_ENV=development
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+  db:
+    image: postgres:15-alpine
+    container_name: vancore-db
+    environment:
+      - POSTGRES_USER=fullstack
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=vancore_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+volumes:
+  postgres_data:
