@@ -125,11 +125,21 @@ exports.Prisma.UserScalarFieldEnum = {
   firstName: 'firstName',
   lastName: 'lastName',
   email: 'email',
+  phoneNo: 'phoneNo',
+  businessName: 'businessName',
+  storeUrl: 'storeUrl',
+  physicalStore: 'physicalStore',
+  businessCategory: 'businessCategory',
   password: 'password',
   googleId: 'googleId',
   role: 'role',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  resetPasswordToken: 'resetPasswordToken',
+  resetPasswordExpiresAt: 'resetPasswordExpiresAt',
+  verificationToken: 'verificationToken',
+  verificationExpiresAt: 'verificationExpiresAt',
+  verified: 'verified'
 };
 
 exports.Prisma.SortOrder = {

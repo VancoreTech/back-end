@@ -1,24 +1,18 @@
-const jwt = require("jsonwebtoken");
-const prisma = require("../prismaClient");
-const { sendVerificationEmail, sendWelcomeEmail } = require("../mailtrap/emails");
+import jwt from "jsonwebtoken";
+import prisma from "../prismaClient.js";
+import bycrypt from "bcryptjs";
+import { sendVerificationEmail, sendWelcomeEmail } from "../mailtrap/emails.js";
 
 const JWT_SECREET = process.env.JWT_SECRET;
 
 function generateToken(res, user) {
     const token = jwt.sign({id: user.id}, JWT_SECREET, {expiresIn: "7d"})
 
-    res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000
-    })
-
     return token
 }
 
 
-exports.register = async (req, res) => {
+export async function register (req, res) {
     const {userName, firstName, lastName, email, phoneNo, businessName, storeUrl, physicalStore, businessCategory, password, confirmPassword} = req.body;
 
     const userNameExists = await prisma.user.findUnique({where: {userName}})
@@ -47,6 +41,7 @@ exports.register = async (req, res) => {
     try {
         const user = await prisma.user.create({
             data: {
+                userName,
                 firstName,
                 lastName,
                 email,
@@ -71,7 +66,7 @@ exports.register = async (req, res) => {
     }
 }
 
-exports.verifyEmail = async (req, res) => {
+export async function verifyEmail (req, res) {
     const {verificationCode} = req.body;
 
     try {
@@ -93,7 +88,7 @@ exports.verifyEmail = async (req, res) => {
     
 
 
-exports.login = async (req, res) => {
+export async function login (req, res) {
     const {userName, password} = req.body
 
     const user = await prisma.user.findUnique({where: {userName: userName}})

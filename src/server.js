@@ -1,10 +1,11 @@
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const passport = require("passport");
+import dotenv from "dotenv";
+import express from "express";
+import cors from "cors";
+import passport from "passport";
+import authRoutes from "./routes/auth.routes.js";
 const app = express();
 
-const authRoutes = require("./src/routes/auth.routes");
+dotenv.config();
 
 app.use(cors());
 app.use(express.json());

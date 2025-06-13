@@ -15,15 +15,25 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  firstName String?
-  lastName  String?
-  email     String   @unique
-  password  String?
-  googleId  String?  @unique
-  role      Role     @default(BUSINESS)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                     String    @id @default(cuid())
+  firstName              String?
+  lastName               String?
+  email                  String    @unique
+  phoneNo                String?
+  businessName           String?
+  storeUrl               String?
+  physicalStore          Boolean?
+  businessCategory       String?
+  password               String?
+  googleId               String?   @unique
+  role                   Role      @default(BUSINESS)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  resetPasswordToken     String?
+  resetPasswordExpiresAt DateTime?
+  verificationToken      String?
+  verificationExpiresAt  DateTime?
+  verified               Boolean   @default(false)
 }
 
 enum Role {

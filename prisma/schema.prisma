@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -16,12 +15,13 @@ datasource db {
 
 model User {
   id        String @id @default(cuid())
+  userName String @unique
   firstName  String?
   lastName String?
   email String @unique
   phoneNo String?
   businessName String?
-  storeUrl String?
+  storeUrl String? @unique
   physicalStore Boolean?
   businessCategory String?
   password String?
@@ -31,7 +31,7 @@ model User {
   updatedAt DateTime @updatedAt
   resetPasswordToken String?
   resetPasswordExpiresAt DateTime?
-  verificationToken String?
+  verificationToken Int?
   verificationExpiresAt DateTime?
   verified Boolean @default(false)
 
