@@ -11,7 +11,101 @@ function generateToken(res, user) {
     return token
 }
 
+export async function checkUsername (req, res) {
+    const {userName} = req.body;
+    
+    if (!userName) {
+        return res.status(400).json({message: "Username is required"})
+    }
 
+    const userExists = await prisma.user.findUnique({where: {userName}})
+    if (userExists) {
+        return res.status(400).json({message: "User with this username already exists"})
+    }
+
+    return res.status(200).json({message: "Username is available"})
+}
+
+export async function checkEmail (req, res) {
+    const {email} = req.body;
+    
+   if (!email) {
+    return res.status(400).json({message: "Email is required"})
+   } 
+
+   const emailExists = await prisma.user.findUnique({where: {email}})
+   if (emailExists) {
+    return res.status(400).json({message: "User with this email already exists"})
+   }
+
+    const verificationToken = Math.floor(100000 + Math.random() * 900000)
+    const verificationExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+   await sendVerificationEmail(email, verificationToken, verificationExpiresAt);
+
+   const user = await prisma.user.create({
+    data: {
+        email,
+        verificationToken,
+        verificationExpiresAt,
+        verified: false
+    }
+   })
+
+   return res.status(200).json({message: "Verification email sent successfully", user})
+}
+
+export async function verifyEmail (req, res) {
+    const {verificationCode} = req.body;
+
+    try {
+        const user = await prisma.user.findUnique({where: {verificationToken: verificationCode, verificationExpiresAt: {gt: new Date()}}})
+        if (!user) {
+            return res.status(400).json({message: "Invalid verification code"})
+        }
+        user.verified = true;
+        user.verificationToken = null;
+        user.verificationExpiresAt = null;
+        await user.save();
+
+        return res.status(200).json({message: "Email verified successfully"})
+    } catch (error) {
+        return res.status(500).json({message: error.message})
+    }
+}
+
+
+export async function checkBusinessName (req, res) {
+    const {businessName} = req.body;
+    
+    if (!businessName) {
+        return res.status(400).json({message: "Business name is required"})
+    }
+
+    const businessNameExists = await prisma.user.findUnique({where: {businessName}})
+    if (businessNameExists) {
+        return res.status(400).json({message: "Business name already exists"})
+    }
+
+    return res.status(200).json({message: "Business name is available"})
+}
+
+export async function checkStoreUrl (req, res) {
+    const {storeUrl} = req.body;
+    
+    if (!storeUrl) {
+        return res.status(400).json({message: "Store URL is required"})
+    }
+
+    const storeUrlExists = await prisma.user.findUnique({where: {storeUrl}})
+    if (storeUrlExists) {
+        return res.status(400).json({message: "Store URL already exists"})
+    }
+
+    return res.status(200).json({message: "Store URL is available"})
+}
+
+    
 export async function register (req, res) {
     const {userName, firstName, lastName, email, phoneNo, businessName, storeUrl, physicalStore, businessCategory, password, confirmPassword} = req.body;
 
@@ -25,18 +119,22 @@ export async function register (req, res) {
         return res.status(400).json({message: "User with this email already exists"})
     }
 
-    if (password !== confirmPassword) {
-        return res.status(400).json({message: "Passwords do not match"})
-    }
-
     const storeUrlExists = await prisma.user.findUnique({where: {storeUrl}})
     if (storeUrlExists) {
         return res.status(400).json({message: "A store with this name already exists"})
     }
 
+    if (password !== confirmPassword) {
+        return res.status(400).json({message: "Passwords do not match"})
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+        return res.status(400).json({message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character"})
+    }
+
     const hashedPassword = await bycrypt.hash(password, 10);
-    const verificationToken = Math.floor(100000 + Math.random() * 900000)
-    const verificationExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    
 
     try {
         const user = await prisma.user.create({
@@ -59,33 +157,13 @@ export async function register (req, res) {
         })
 
         const token = generateToken(user);
-        await sendVerificationEmail(user.email, verificationToken);
+        await sendWelcomeEmail(user.email, user.firstName);
+       
         return res.status(201).json({ message: "User registered successfully", user, token: token})    
     } catch (error) {
         return res.status(500).json({message: error.message})
     }
 }
-
-export async function verifyEmail (req, res) {
-    const {verificationCode} = req.body;
-
-    try {
-        const user = await prisma.user.findUnique({where: {verificationToken: verificationCode, verificationExpiresAt: {gt: new Date()}}})
-        if (!user) {
-            return res.status(400).json({message: "Invalid verification code"})
-        }
-        user.verified = true;
-        user.verificationToken = null;
-        user.verificationExpiresAt = null;
-        await user.save();
-
-        await sendWelcomeEmail(user.email, user.firstName);
-        return res.status(200).json({message: "Email verified successfully"})
-    } catch (error) {
-        return res.status(500).json({message: error.message})
-    }
-}
-    
 
 
 export async function login (req, res) {
