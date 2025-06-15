@@ -11,20 +11,6 @@ function generateToken(res, user) {
     return token
 }
 
-export async function checkUsername (req, res) {
-    const {userName} = req.body;
-    
-    if (!userName) {
-        return res.status(400).json({message: "Username is required"})
-    }
-
-    const userExists = await prisma.user.findUnique({where: {userName}})
-    if (userExists) {
-        return res.status(400).json({message: "User with this username already exists"})
-    }
-
-    return res.status(200).json({message: "Username is available"})
-}
 
 export async function checkEmail (req, res) {
     const {email} = req.body;
@@ -52,32 +38,81 @@ export async function checkEmail (req, res) {
     }
    })
 
-   return res.status(200).json({message: "Verification email sent successfully", user})
+   return res.status(200).json({message: "Verification email sent successfully", userId: user.id})
 }
 
 export async function verifyEmail (req, res) {
-    const {verificationCode} = req.body;
+    const {userId, verificationCode} = req.body;
 
     try {
-        const user = await prisma.user.findUnique({where: {verificationToken: verificationCode, verificationExpiresAt: {gt: new Date()}}})
+        const user = await prisma.user.findFirst(
+            {where: 
+                {
+                    id: userId, 
+                    verificationToken: verificationCode,
+                    verificationExpiresAt: {gt: new Date()}
+                }
+            }
+        )
         if (!user) {
             return res.status(400).json({message: "Invalid verification code"})
         }
-        user.verified = true;
-        user.verificationToken = null;
-        user.verificationExpiresAt = null;
-        await user.save();
 
-        return res.status(200).json({message: "Email verified successfully"})
+        const updatedUser = await prisma.user.update({
+            where: {id: user.id},
+            data: {
+                verified: true,
+                verificationToken: null,
+                verificationExpiresAt: null
+            }
+        })
+
+        return res.status(200).json({message: "Email verified successfully", user: updatedUser})
+    } catch (error) {
+        return res.status(500).json({message: error.message})
+    }
+}
+
+export async function createUser (req, res) {
+    const {userId, userName, firstName, lastName} = req.body;
+
+    if (!userName) {
+        return res.status(400).json({message: "Username is required"})
+    }
+
+    const usernameExists = await prisma.user.findUnique({where: {userName}})
+    if (usernameExists) {
+        return res.status(400).json({message: "A User with this Username Exists"})
+    }
+
+    if (!firstName) {
+        return res.status(400).json({message: "Firstname is required"})
+    }
+
+    if (!lastName) {
+        return res.status(400).json({messge: "Lastname is required"})
+    }
+
+    try {
+        const updatedUser = await prisma.user.update({
+            where: {id: userId},
+            data: {
+                userName,
+                firstName,
+                lastName
+            }
+        })
+
+        return res.status(200).json({message: "User Created successfully", user: updatedUser})
     } catch (error) {
         return res.status(500).json({message: error.message})
     }
 }
 
 
-export async function checkBusinessName (req, res) {
-    const {businessName} = req.body;
-    
+export async function addBusinessInfo (req, res) {
+    const {userId, businessName, storeUrl, physicalStore, businessCategory} = req.body;
+
     if (!businessName) {
         return res.status(400).json({message: "Business name is required"})
     }
@@ -87,12 +122,6 @@ export async function checkBusinessName (req, res) {
         return res.status(400).json({message: "Business name already exists"})
     }
 
-    return res.status(200).json({message: "Business name is available"})
-}
-
-export async function checkStoreUrl (req, res) {
-    const {storeUrl} = req.body;
-    
     if (!storeUrl) {
         return res.status(400).json({message: "Store URL is required"})
     }
@@ -102,26 +131,33 @@ export async function checkStoreUrl (req, res) {
         return res.status(400).json({message: "Store URL already exists"})
     }
 
-    return res.status(200).json({message: "Store URL is available"})
+    try {
+       const updatedUser = await prisma.user.update({
+            where: {id: userId},
+            data: {
+                businessName,
+                storeUrl,
+                physicalStore,
+                businessCategory
+            }
+        })
+    
+        return res.status(200).json({message: "Business info added successfully", user: updatedUser})
+    } catch (error) {
+        return res.status(500).json({message: error.message})
+    }
 }
 
     
 export async function register (req, res) {
-    const {userName, firstName, lastName, email, phoneNo, businessName, storeUrl, physicalStore, businessCategory, password, confirmPassword} = req.body;
+    const {userId, password, confirmPassword} = req.body;
 
-    const userNameExists = await prisma.user.findUnique({where: {userName}})
-    if (userNameExists) {
-        return res.status(400).json({message: "User with this username already exists"})
-    }
-    
-    const userExists = await prisma.user.findUnique({where: {email}})
-    if(userExists) {
-        return res.status(400).json({message: "User with this email already exists"})
+    if (!password) {
+        return res.status(400).json({message: "Password is required"})
     }
 
-    const storeUrlExists = await prisma.user.findUnique({where: {storeUrl}})
-    if (storeUrlExists) {
-        return res.status(400).json({message: "A store with this name already exists"})
+    if (!confirmPassword) {
+        return res.status(400).json({message: "Confirm Password is required"})
     }
 
     if (password !== confirmPassword) {
@@ -133,33 +169,28 @@ export async function register (req, res) {
         return res.status(400).json({message: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character"})
     }
 
-    const hashedPassword = await bycrypt.hash(password, 10);
+   
     
+    const user = await prisma.user.findUnique({where: {id: userId}})
+    if (!user) return res.status(400).json({message: "User does not exist"})
+    if (!user.email || !user.userName || !user.businessName || !user.storeUrl || !user.verified) {
+        res.status(400).json({message: "Incomplete profile"})
+    }
+
+    const hashedPassword = await bycrypt.hash(password, 10);
 
     try {
-        const user = await prisma.user.create({
-            data: {
-                userName,
-                firstName,
-                lastName,
-                email,
-                phoneNo,
-                businessName,
-                storeUrl,
-                physicalStore,
-                businessCategory,
-                password: hashedPassword,
-                role: "BUSINESS",
-                verificationToken,
-                verificationExpiresAt,
-                verified: false
-            }
-        })
+       const updatedUser = await prisma.user.update({
+        where: {id: userId},
+        data: {
+            password: hashedPassword
+        }
+       })
 
         const token = generateToken(user);
         await sendWelcomeEmail(user.email, user.firstName);
        
-        return res.status(201).json({ message: "User registered successfully", user, token: token})    
+        return res.status(201).json({ message: "Account Registered Sucessfully", user: updatedUser, token: token})    
     } catch (error) {
         return res.status(500).json({message: error.message})
     }
@@ -182,3 +213,42 @@ export async function login (req, res) {
     const token = generateToken(user)
     return res.status(200).json({user, token})
 }
+
+export async function getUser (req, res) {
+    const { userId } = req.params;
+
+    if (!userId) {
+        return res.status(400).json({message: "User ID is required"})
+    }
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: {id: userId},
+            select: {
+                id: true,
+                userName: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phoneNo: true,
+                businessName: true,
+                storeUrl: true,
+                physicalStore: true,
+                businessCategory: true,
+                verified: true,
+                role: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        })
+
+        if (!user) {
+            return res.status(400).json({message: "User not found"})
+        }
+
+        return res.status(200).json({user})
+    } catch (error) {
+        return res.status(500).json({message: error.message})
+    }
+}
+    
